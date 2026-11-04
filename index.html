@@ -1260,13 +1260,15 @@ function pageArea(){
     $$('#aTbl thead .col th',root).forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(!k)return;if(SS.k===k)SS.dir*=-1;else SS={k,dir:(k==='area')?1:-1};buildTbl();});
   }
   function drawCh(){const view=DATA.area.views[cur];const rows=ordered(view).filter(passF);Object.values(charts).forEach(c=>c&&c.destroy());charts={};
+    /*[5 พ.ย.] แท่งใช้ ~60% ล่างของกราฟ · เส้นแกนขวาอยู่ ~35% บน ไม่ทับป้ายตัวเลข*/const axR=(bars,line,share)=>{const bm=Math.max(1,...bars.filter(v=>v!=null));const L=line.filter(v=>v!=null);const lx=L.length?Math.max(...L):1,ln=L.length?Math.min(...L):0;const sp=Math.max(lx-ln,lx*.15,1);const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(Math.max(1,v))));return Math.ceil(v/p*2)/2*p;};return {yMax:nice(bm/share),tMin:ln-sp*1.9,tMax:lx+sp*.25};};
+    const BX=axR(rows.flatMap(r=>[r.lmm_reg,r.tm_reg,r.lmm_con,r.tm_con]),rows.map(r=>r.target),.6);
     charts.bar=new Chart($('#aBar',root),{plugins:[ptLbl(false,1)],data:{labels:rows.map(r=>shortA(r.area)),datasets:[
       {type:'bar',label:'REGISTER LM',_noLbl:1,data:rows.map(r=>r.lmm_reg),backgroundColor:'#d6e0f5',borderRadius:3},
       {type:'bar',label:'REGISTER',data:rows.map(r=>r.tm_reg),backgroundColor:'#9db4e8',borderRadius:3},
       {type:'bar',label:'CONNECT LM',_noLbl:1,data:rows.map(r=>r.lmm_con),backgroundColor:'#c3cbe0',borderRadius:3},
       {type:'bar',label:'CONNECT',data:rows.map(r=>r.tm_con),backgroundColor:'#2f55b8',borderRadius:3},
-      {type:'line',label:'TARGET',data:rows.map(r=>r.target),borderColor:'#5b6472',borderDash:[4,3],pointRadius:2,tension:.2,backgroundColor:'#5b6472'}]},
-      options:{layout:{padding:{top:16}},plugins:{legend:{labels:{boxWidth:10,boxHeight:8,padding:8}}},scales:{x:{ticks:{font:{size:9},maxRotation:0,minRotation:0,autoSkip:false,callback(v){/*[29 ต.ค.] ชื่อ Area ไม่ซ้อน: ย่อ NE + 2 บรรทัด*/let l=String(this.getLabelForValue(v));const w=this.chart.width/Math.max(1,this.chart.data.labels.length);if(w<56)l=l.replace('Northeast','NE');if(w<44&&/^BMA /.test(l))return ['BMA',l.slice(4)];const p=l.split(' ');return p.length>1&&!/^BMA /.test(l)?[p[0],p.slice(1).join(' ')]:l;}}},y:{grace:'14%'}}}});
+      {type:'line',label:'TARGET (แกนขวา)',yAxisID:'y2',data:rows.map(r=>r.target),borderColor:'#5b6472',borderDash:[4,3],pointRadius:2,tension:.2,backgroundColor:'#5b6472'}]},
+      options:{layout:{padding:{top:16}},plugins:{legend:{labels:{boxWidth:10,boxHeight:8,padding:8}}},scales:{x:{ticks:{font:{size:9},maxRotation:0,minRotation:0,autoSkip:false,callback(v){/*[29 ต.ค.] ชื่อ Area ไม่ซ้อน: ย่อ NE + 2 บรรทัด*/let l=String(this.getLabelForValue(v));const w=this.chart.width/Math.max(1,this.chart.data.labels.length);if(w<56)l=l.replace('Northeast','NE');if(w<44&&/^BMA /.test(l))return ['BMA',l.slice(4)];const p=l.split(' ');return p.length>1&&!/^BMA /.test(l)?[p[0],p.slice(1).join(' ')]:l;}}},y:{beginAtZero:true,max:BX.yMax,ticks:{font:{size:9}}},y2:{position:'right',min:BX.tMin,max:BX.tMax,grid:{drawOnChartArea:false},ticks:{font:{size:9},callback:(v,i,t)=>(v<=0||i===0||(i===t.length-1&&t.length>2&&Math.abs((v-t[i-1].value)-(t[1].value-t[0].value))>1e-6))?'':nf(v)}}}}});/*[5 พ.ย.] Target แยกแกนขวา ให้แท่ง Register/Connect สมส่วน*/
     const srt=[...rows].sort((a,b)=>(b.rr||0)-(a.rr||0));
     /* [5 ต.ค.] %Ach เดือนที่แล้ว (LM MTD Connect ÷ Target เดือนที่แล้ว) — แท่งสีจาง */
     const PK=(()=>{const M=(typeof DATA_MONTHS!=='undefined'&&DATA_MONTHS&&DATA_MONTHS.m)||null;if(!M)return null;const ks=Object.keys(M).sort();const i=ks.indexOf(window.DATA_KEY);return i>0?M[ks[i-1]]:null;})();
@@ -1274,10 +1276,11 @@ function pageArea(){
     const lmAch=r=>{const t=pvT[r.area];return t&&r.lmm_con!=null?+(r.lmm_con/t*100).toFixed(1):null;};
     const fade=h=>{const x=h.replace('#','');return `rgba(${parseInt(x.substr(0,2),16)},${parseInt(x.substr(2,2),16)},${parseInt(x.substr(4,2),16)},.32)`;};
     const lmDs=PK?[{type:'bar',label:'%Ach LM',_noLbl:1,data:srt.map(lmAch),backgroundColor:srt.map(r=>fade(rrColor(lmAch(r)!=null?lmAch(r)/100:null))),borderRadius:3}]:[];
+    const AX=axR([...srt.map(r=>r.ach!=null?r.ach*100:null),...(PK?srt.map(lmAch):[])],srt.map(r=>r.rr!=null?r.rr*100:null),.6);
     charts.ach=new Chart($('#aAch',root),{plugins:[ptLbl(true,1)],data:{labels:srt.map(r=>shortA(r.area)),datasets:[...lmDs,
       {type:'bar',label:'%Ach',data:srt.map(r=>r.ach!=null?+(r.ach*100).toFixed(1):null),backgroundColor:srt.map(r=>rrColor(r.ach)),borderRadius:3},
-      {type:'line',label:'%RR',data:srt.map(r=>r.rr!=null?+(r.rr*100).toFixed(1):null),borderColor:C.blueD,backgroundColor:C.blueD,pointRadius:2,tension:.2}]},
-      options:{layout:{padding:{top:16}},plugins:{legend:{labels:{boxWidth:10,boxHeight:8,padding:8}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y==null?'–':c.parsed.y+'%')}}},scales:{x:{ticks:{font:{size:9},maxRotation:0,minRotation:0,autoSkip:false,callback(v){/*[29 ต.ค.] ชื่อ Area ไม่ซ้อน: ย่อ NE + 2 บรรทัด*/let l=String(this.getLabelForValue(v));const w=this.chart.width/Math.max(1,this.chart.data.labels.length);if(w<56)l=l.replace('Northeast','NE');if(w<44&&/^BMA /.test(l))return ['BMA',l.slice(4)];const p=l.split(' ');return p.length>1&&!/^BMA /.test(l)?[p[0],p.slice(1).join(' ')]:l;}}},y:{grace:'8%',ticks:{callback:v=>v+'%',font:{size:9}}}}}});}
+      {type:'line',label:'%RR (แกนขวา)',yAxisID:'y2',data:srt.map(r=>r.rr!=null?+(r.rr*100).toFixed(1):null),borderColor:C.blueD,backgroundColor:C.blueD,pointRadius:2,tension:.2}]},
+      options:{layout:{padding:{top:16}},plugins:{legend:{labels:{boxWidth:10,boxHeight:8,padding:8}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y==null?'–':c.parsed.y+'%')}}},scales:{x:{ticks:{font:{size:9},maxRotation:0,minRotation:0,autoSkip:false,callback(v){/*[29 ต.ค.] ชื่อ Area ไม่ซ้อน: ย่อ NE + 2 บรรทัด*/let l=String(this.getLabelForValue(v));const w=this.chart.width/Math.max(1,this.chart.data.labels.length);if(w<56)l=l.replace('Northeast','NE');if(w<44&&/^BMA /.test(l))return ['BMA',l.slice(4)];const p=l.split(' ');return p.length>1&&!/^BMA /.test(l)?[p[0],p.slice(1).join(' ')]:l;}}},y:{beginAtZero:true,max:AX.yMax,ticks:{callback:v=>v+'%',font:{size:9}}},y2:{position:'right',min:AX.tMin,max:AX.tMax,grid:{drawOnChartArea:false},ticks:{callback:(v,i,t)=>(v<=0||i===0||(i===t.length-1&&t.length>2&&Math.abs((v-t[i-1].value)-(t[1].value-t[0].value))>1e-6))?'':Math.round(v)+'%',font:{size:9}}}}}});}/*[5 พ.ย.] %RR แยกแกนขวา ให้แท่ง %Ach สมส่วน*/
   function render(){const l=AVIEWS.find(v=>v[0]===cur)[1];const view=DATA.area.views[cur];const vis=ordered(view).filter(passF);
     $('#aT1',root).textContent='มุมมอง: '+l;$('#aTag',root).textContent='มุมมอง: '+l+' · '+vis.length+' Area + TOTAL';
     $('#aCount',root).innerHTML=`<b>${vis.length}</b> Area`;
@@ -1659,11 +1662,12 @@ function pageTol(){
      <div class="fgrp"><span class="lab">Region</span><div class="chips" id="tRegion"></div></div>
      <div class="fgrp"><span class="lab">Area (เลือก/ค้นหา)</span><div id="tAreaSel"></div></div>
      <div class="fgrp"><span class="lab">หน่วย</span><div class="seg" id="tUnit"><button data-u="qty" class="on">QTY</button><button data-u="net">NET</button></div></div>
+     <div class="fgrp"><span class="lab">กราฟเทียบย้อนหลัง</span><div class="seg" id="tWk"><button data-w="1">1 สัปดาห์</button><button data-w="2" class="on">2 สัปดาห์</button><button data-w="3">3 สัปดาห์</button></div></div>
      <div class="fgrp"><span class="lab">ระดับ</span><div class="seg" id="tShop"><button data-s="0" class="on">Area</button><button data-s="1">Shop</button></div></div>
      <div class="fgrp"><span class="lab">ชื่อสาขา (เลือก/ค้นหา)</span><div id="tShopSel"></div></div>
      <div class="fbtns"><span class="count" id="tCount"></span><button class="reset" id="tReset">ล้าง</button></div></div></div>
-   <div class="g" style="grid-template-columns:1fr 1fr"><div class="panel"><h3>🎯 %Ach(RR) ราย Area <span class="tag" id="tT1"></span></h3><div class="cb s"><canvas id="tAch"></canvas></div></div>
-     <div class="panel"><h3>📏 Target vs Actual ราย Area</h3><div class="cb s"><canvas id="tTA"></canvas></div></div></div>
+   <div class="g" style="grid-template-columns:1fr 1fr"><div class="panel"><h3>📝 Register — เทียบรายสัปดาห์ ราย Area <span class="tag" id="tT1"></span></h3><div class="cb s"><canvas id="tAch"></canvas></div></div>
+     <div class="panel"><h3>🔌 Connect — เทียบรายสัปดาห์ ราย Area <span class="tag" id="tT2"></span></h3><div class="cb s"><canvas id="tTA"></canvas></div></div></div>
    <div class="panel"><h3>📋 ตาราง TOL WOW Performance <span class="tag" id="tTag"></span></h3><div class="tbl-wrap"><table class="rc" id="tTbl"></table></div></div>`;
   const ALL=DATA.tolperf;let unit='qty',showShop=false,SS={k:'achrr',dir:-1},q='';
   const areasR=ALL.filter(r=>!r.shop);const known=new Set(AREA_ORD);
@@ -1674,11 +1678,12 @@ function pageTol(){
   const REGS=['BMA','UPC I','UPC II'];const st={reg:new Set(REGS)};
   const MC=[{k:'days',l:'วันผ่าน',f:nf,mut:1},{k:'target',l:'Target',f:nf1},{k:'actual',l:'Actual',f:nf1,b:1},{k:'ach',l:'%Ach',f:pf,cf:'ach'},
    {k:'rr',l:'Run rate',f:nf1},{k:'achrr',l:'%Ach(RR)',f:pf,heat:1},{k:'lm',l:'LM',f:nf1,mut:1},{k:'mom',l:'%MoM',f:pf,gr:1,em:1},
-   {k:'wnow',l:'W นี้',f:nf1,cf:'wk'},{k:'wprev',l:'W ก่อน',f:nf1,mut:1},{k:'wow',l:'%WoW',f:pf,gr:1,em:1},{k:'gapwow',l:'Gap WOW',f:nf1,gn:1},{k:'w2',l:'W-2',f:nf1,mut:1,fa:1},
+   {k:'wnow',l:'WTD',f:nf1,cf:'wk'},{k:'wprev',l:'LWTD',f:nf1,mut:1},{k:'wow',l:'%WoW',f:pf,gr:1,em:1},{k:'gapwow',l:'Gap WOW',f:nf1,gn:1},{k:'w2',l:'W-2',f:nf1,mut:1,fa:1},
    {k:'wo2w',l:'%Wo2W',f:pf,gr:1,fa:1},{k:'tgap',l:'Target Gap',f:nf1},{k:'togo',l:'To go/วัน',f:nf1,mut:1}];
   const mkchip=(t,on)=>{const b=document.createElement('div');b.className='chip'+(on?' on':'');b.textContent=t;return b;};
   REGS.forEach(rg=>{const c=mkchip(rg,true);c.onclick=()=>{st.reg.has(rg)?st.reg.delete(rg):st.reg.add(rg);c.classList.toggle('on');render();};$('#tRegion',root).appendChild(c);});
   $('#tUnit',root).onclick=e=>{const b=e.target.closest('button');if(!b)return;unit=b.dataset.u;$$('#tUnit button',root).forEach(x=>x.classList.toggle('on',x===b));render();};
+  $('#tWk',root).onclick=e=>{const b=e.target.closest('button');if(!b)return;WKN=+b.dataset.w;$$('#tWk button',root).forEach(x=>x.classList.toggle('on',x===b));draw();};
   $('#tShop',root).onclick=e=>{const b=e.target.closest('button');if(!b)return;showShop=b.dataset.s==='1';$$('#tShop button',root).forEach(x=>x.classList.toggle('on',x===b));render();};
   $('#tReset',root).onclick=()=>{st.reg=new Set(REGS);unit='qty';showShop=false;areaSel.reset();shopSel.reset();$$('#tRegion .chip',root).forEach(c=>c.classList.add('on'));$$('#tUnit button',root).forEach((x,i)=>x.classList.toggle('on',i===0));$$('#tShop button',root).forEach((x,i)=>x.classList.toggle('on',i===0));render();};
   function visAreas(){return areasR.filter(r=>known.has(r.name)&&st.reg.has(regionOf(r.name))&&(areaSel.all()||areaSel.sel.has(r.name)));}
@@ -1767,8 +1772,33 @@ function pageTol(){
   let ch={};function draw(){Object.values(ch).forEach(c=>c&&c.destroy());ch={};
     const A=AREA_ORD.filter(a=>st.reg.has(regionOf(a))&&(areaSel.all()||areaSel.sel.has(a))).map(a=>areasR.find(r=>r.name===a)).filter(Boolean);
     const twoL=s=>{const p=String(s).split(' ');return p.length>1&&!String(s).startsWith('BMA')?[p[0],p.slice(1).join(' ')]:s;};const XT={font:{size:9},maxRotation:0,minRotation:0,autoSkip:false,padding:2,callback:function(v,i){const n=shortA(A[i]&&A[i].name);const nar=this.chart.width/Math.max(1,A.length)<50;const s=nar?n.replace('Northeast','NE'):n;if(nar&&this.chart.width/Math.max(1,A.length)<44&&/^BMA /.test(s))return ['BMA',s.slice(4)];return twoL(s);}};const TT=c=>shortA(A[c[0].dataIndex].name);
-    ch.ach=new Chart($('#tAch',root),{type:'bar',data:{labels:A.map(r=>twoL(shortA(r.name))),datasets:[{data:A.map(r=>r[unit].achrr!=null?+(r[unit].achrr*100).toFixed(1):0),backgroundColor:A.map(r=>rrColor(r[unit].achrr)),borderRadius:3}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:TT,label:c=>c.parsed.y+'%'}}},scales:{x:{ticks:XT},y:{ticks:{callback:v=>v+'%',font:{size:9}}}}}});
-    ch.ta=new Chart($('#tTA',root),{data:{labels:A.map(r=>twoL(shortA(r.name))),datasets:[{type:'bar',label:'Target',data:A.map(r=>r[unit].target),backgroundColor:C.lt,borderRadius:3},{type:'bar',label:'Actual',data:A.map(r=>r[unit].actual),backgroundColor:C.blue,borderRadius:3}]},options:{plugins:{legend:{labels:{boxWidth:11}},tooltip:{callbacks:{title:TT}}},scales:{x:{ticks:XT}}}});}
+    /* [5 พ.ย. 2026] หัวข้อ WOW: กราฟเทียบ W นี้ กับสัปดาห์ก่อนหน้า (เลือกย้อนหลัง 1/2/3 สัปดาห์) · WTD จันทร์–วันล่าสุด เทียบช่วงวันเดียวกัน (เกณฑ์เดียวกับคอลัมน์ W นี้/W ก่อน/W-2 ในตาราง)
+       Register / Connect จากยอดรายวันรายสาขา (QTY) · %WoW = W นี้ เทียบ W ก่อน · ของเดิม %Ach(RR) / Target vs Actual ดูได้ในการ์ดและตาราง */
+    const TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const rng=a=>{if(!a.length)return '';const f=a[0],l=a[a.length-1];const d=x=>+x.slice(8),m=x=>TH[+x.slice(5,7)-1];return f===l?d(f)+' '+m(f):(f.slice(0,7)===l.slice(0,7)?d(f)+'–'+d(l)+' '+m(l):d(f)+' '+m(f)+' – '+d(l)+' '+m(l));};
+    const WS=[0,1,2,3].slice(0,WKN+1).map(n=>tolWeek(n));const WN=['WTD','LWTD','W-2','W-3'];
+    const WCOL=['','#9aa6ba','#c3cbd8','#e2e6ee'];
+    const tag=WS.map((w,i)=>WN[i]+' '+rng(w)+(i>0&&!hasDays(w)?' (ไม่มีข้อมูล)':'')).join(' · ')+' · QTY';
+    $('#tT1',root).textContent=tag;$('#tT2',root).textContent=tag;
+    const ser=k=>WS.map(w=>A.map(r=>hasDays(w)?dSum(k,r.name,w):null));
+    const wowLbl=V=>({id:'wowLbl',afterDatasetsDraw(c){const x=c.ctx,K=V.length;if(c.chartArea.width/Math.max(1,A.length)<(K>2?40:30))return;const mN=c.getDatasetMeta(K-1),mP=c.getDatasetMeta(K-2);if(mN.hidden||mP.hidden)return;x.save();x.font='600 9.5px Arial';x.textAlign='center';
+      A.forEach((r,i)=>{const n=V[0][i],p=V[1][i];if(n==null||(!p&&!n))return;let top=Infinity,l=Infinity,rr=-Infinity;for(let j=0;j<K;j++){const b=c.getDatasetMeta(j).data[i];if(!b)continue;top=Math.min(top,b.y);l=Math.min(l,b.x);rr=Math.max(rr,b.x);}
+       const v=p?n/p-1:null;x.fillStyle=v==null||v>=0?'#1f7a33':'#c0262d';x.fillText(v==null?'ใหม่':(v>=0?'+':'')+Math.round(v*100)+'%',(l+rr)/2,top-6);});x.restore();}});
+    const wCh=(id,V,col,ttl)=>{const ds=[];for(let j=V.length-1;j>=0;j--)ds.push({label:WN[j],data:V[j],backgroundColor:j===0?col:WCOL[j],borderRadius:3});
+      return new Chart($('#'+id,root),{type:'bar',plugins:[wowLbl(V)],data:{labels:A.map(r=>twoL(shortA(r.name))),datasets:ds},
+      options:{layout:{padding:{top:14}},plugins:{legend:{labels:{boxWidth:11}},tooltip:{callbacks:{title:TT,label:c=>c.dataset.label+': '+(c.raw==null?'–':nf(c.raw)),footer:it=>{const i=it[0].dataIndex;const n=V[0][i];
+        return V.slice(1).map((P,j)=>{const p=P[i];return ttl+' เทียบ '+WN[j+1]+' '+(p?((n/p-1)>=0?'+':'')+Math.round((n/p-1)*100)+'%':'–');}).join('\n');}}}},scales:{x:{ticks:XT},y:{beginAtZero:true,grace:'12%',ticks:{font:{size:9}}}}}});};
+    ch.ach=wCh('tAch',ser('r'),'#2f66d6','Register');
+    ch.ta=wCh('tTA',ser('c'),'#2e9e5a','Connect');}
+  let WKN=2;
+  function tolWeek(n){const k=window.DATA_KEY||'';const dd=(DATA.meta.tolAsof&&DATA.meta.tolAsof.day)||((DATA.trend&&DATA.trend.tm&&DATA.trend.tm.days||[]).slice(-1)[0]||'').slice(8);
+    if(!k||!dd)return [];const iso=t=>t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+    const last=new Date(k+'-'+String(dd).padStart(2,'0')+'T00:00:00');const mon=new Date(last);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
+    const out=[];for(let t=new Date(mon);t<=last;t.setDate(t.getDate()+1)){const p=new Date(t);p.setDate(p.getDate()-7*n);out.push(iso(p));}return out;}
+  let DIX=null,DCOV=null;function bIdx(){if(DIX)return;DIX={};DCOV=new Set();const M=(typeof DATA_MONTHS!=='undefined'&&DATA_MONTHS&&DATA_MONTHS.m)||{};Object.keys(M).forEach(ym=>{const tm=M[ym]&&M[ym].trend&&M[ym].trend.tm;if(!tm||!tm.shops)return;
+      (tm.days||[]).forEach(d=>DCOV.add(d));tm.shops.forEach(o=>['r','c'].forEach(k=>{for(const d in (o[k]||{})){const key=k+'|'+o.a+'|'+d;DIX[key]=(DIX[key]||0)+(o[k][d]||0);}}));});}
+  function hasDays(days){bIdx();return days.length>0&&days.every(d=>DCOV.has(d));}
+  function dSum(k,area,days){bIdx();return days.reduce((s,d)=>s+(DIX[k+'|'+area+'|'+d]||0),0);}
   function render(){const t=totals();$('#tT1',root).textContent=unit.toUpperCase();$('#tCount',root).innerHTML=`<b>${visAreas().length}</b> Area`;
     $('#tTag',root).textContent=(unit==='qty'?'QTY':'NET')+' · '+visAreas().length+' Area'+(showShop?' + Shop':'')+' + TOTAL';
     const cards=[['TARGET',nf1(t.target),C.purple,unit.toUpperCase()],['ACTUAL',nf1(t.actual),C.blue,'ทำได้'],['%ACH',pf(t.ach),C.teal,'Act÷Tgt'],['RUN RATE',nf1(t.rr),C.amber,'คาดสิ้นเดือน'],['%ACH(RR)',pf(t.achrr),C.blueD,'RR÷Tgt'],['%MoM',spf(t.mom),t.mom>=0?C.green:C.red,'เทียบเดือนก่อน']];
