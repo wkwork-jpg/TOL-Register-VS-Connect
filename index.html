@@ -3395,8 +3395,37 @@ function tCan(b){const A=(DATA.cancel||[]).filter(c=>c.bma===b);if(!A.length)ret
   L.push('','แนวทางแก้ไข',...FX.map(o=>'• '+o.r[3]));
   return L.join('\n');}
 
-const GEN={sum:tSum,tol:tTol,shop:tShop,status:tStat,appt:tStat,zoom:tZnl,cancel:tCan};
-const TITLE={sum:'สรุป BMA III / IV',tol:'TOL WOW Performance',shop:'ราย Shop',status:'Status & Lead Time',appt:'ผลนัดติดตั้ง',zoom:'Zoom Staff · No Register / No Connect (ตามตัวกรองในหน้า)',cancel:'Detail Cancel · สรุปรายสาขา สาเหตุ แนวทางแก้ไข'};
+/* ---- [6 พ.ย. 2026] หน้า ราย Area: ภาพรวม + Ranking 15 Area + WTD เทียบ LWTD ---- */
+const aRows=()=>{const V=(DATA.area&&DATA.area.views&&DATA.area.views.main)||{};return (V.rows||[]).filter(r=>r.area&&r.region&&r.region!=='-');};
+let AIX=null,ACOV=null;
+function aIdx(){if(AIX)return;AIX={};ACOV=new Set();const MM=(typeof DATA_MONTHS!=='undefined'&&DATA_MONTHS&&DATA_MONTHS.m)||{};Object.keys(MM).forEach(ym=>{const tm=MM[ym]&&MM[ym].trend&&MM[ym].trend.tm;if(!tm||!tm.shops)return;(tm.days||[]).forEach(d=>ACOV.add(d));tm.shops.forEach(o=>['r','c'].forEach(k=>{for(const d in (o[k]||{})){const key=k+'|'+o.a+'|'+d;AIX[key]=(AIX[key]||0)+(o[k][d]||0);}}));});}
+const aDays=r=>{const o=[];const t=new Date(r[0]+'T00:00:00'),e=new Date(r[1]+'T00:00:00');for(;t<=e;t.setDate(t.getDate()+1))o.push(iso(t.getFullYear(),t.getMonth()+1,t.getDate()));return o;};
+const aSum=(k,a,ds)=>ds.reduce((s,d)=>s+(AIX[k+'|'+a+'|'+d]||0),0);
+const wp=(n,p)=>p?(n/p-1):null;
+const spp=v=>v==null||!isFinite(v)?'–':(v>0?'+':v<0?'−':'')+(Math.abs(v)*100).toFixed(1)+'%';
+const rk=(arr,v)=>v==null||!isFinite(v)?null:1+arr.filter(x=>x!=null&&isFinite(x)&&x>v).length;
+function tArea(b){const R=aRows();const me=R.find(r=>String(r.area).startsWith(b+' '));if(!me)return 'ไม่มีข้อมูล '+b;const N=R.length;
+  const V=(DATA.area.views.main)||{};const T=V.total||{};aIdx();const W=weeks();const dT=aDays(W.tw),dL=aDays(W.lw);const ok=dT.concat(dL).every(d=>ACOV.has(d));
+  const wk=R.map(r=>({a:r.area,rt:aSum('r',r.area,dT),rl:aSum('r',r.area,dL),ct:aSum('c',r.area,dT),cl:aSum('c',r.area,dL)}));wk.forEach(x=>{x.rw=wp(x.rt,x.rl);x.cw=wp(x.ct,x.cl);});
+  const w=wk.find(x=>x.a===me.area);const nt=wk.reduce((s,x)=>({rt:s.rt+x.rt,rl:s.rl+x.rl,ct:s.ct+x.ct,cl:s.cl+x.cl}),{rt:0,rl:0,ct:0,cl:0});
+  const rr=R.map(r=>r.rr),cr=R.map(r=>r.tm_rate);
+  const L=['TOL ราย Area – '+b+' (ข้อมูล ณ '+asof()+')','','ภาพรวมเดือนนี้',
+   '• Register '+nf(me.tm_reg)+' | Connect '+nf(me.tot_con)+' | Target '+nf(me.target),
+   '• %Ach '+pc(me.ach)+' | %Ach(RR) '+pc(me.rr)+' (ประเทศ '+pc(T.rr)+')',
+   '• Connect Rate '+pc(me.tm_rate)+' | LM ช่วงเดียวกัน '+pc(me.lmm_rate),
+   '• เทียบ LM ช่วงเดียวกัน: Register '+spp(me.mom_reg_p)+' | Connect '+spp(me.mom_con_p),
+   '• Pending '+nf(me.pending)+' (เกิน 7 วัน '+nf(me.p_gt7)+' · ข้ามด. '+nf(me.p_cross)+' · ยกมา '+nf(me.p_carry||0)+') | Cancel '+nf(me.cancel),
+   '','Ranking '+b+' (จาก '+N+' Area)',
+   '• %Ach(RR) อันดับ '+(rk(rr,me.rr)||'–')+'/'+N,
+   '• Connect Rate อันดับ '+(rk(cr,me.tm_rate)||'–')+'/'+N];
+  if(ok)L.push('• Register %WoW อันดับ '+(rk(wk.map(x=>x.rw),w.rw)||'–')+'/'+N,'• Connect %WoW อันดับ '+(rk(wk.map(x=>x.cw),w.cw)||'–')+'/'+N);
+  L.push('','WTD เทียบ LWTD ('+W.twL+' เทียบ '+W.lwL+')');
+  if(ok)L.push('• Register '+nf(w.rl)+' → '+nf(w.rt)+' ('+spp(w.rw)+')','• Connect '+nf(w.cl)+' → '+nf(w.ct)+' ('+spp(w.cw)+')','• ประเทศ: Register '+nf(nt.rl)+' → '+nf(nt.rt)+' ('+spp(wp(nt.rt,nt.rl))+') | Connect '+nf(nt.cl)+' → '+nf(nt.ct)+' ('+spp(wp(nt.ct,nt.cl))+')');
+  else L.push('• ไม่มีข้อมูลรายวันครบทั้ง 2 สัปดาห์');
+  return L.join('\n');}
+
+const GEN={sum:tSum,area:tArea,tol:tTol,shop:tShop,status:tStat,appt:tStat,zoom:tZnl,cancel:tCan};
+const TITLE={sum:'สรุป BMA III / IV',area:'ราย Area · ภาพรวม · Ranking · WTD เทียบ LWTD',tol:'TOL WOW Performance',shop:'ราย Shop',status:'Status & Lead Time',appt:'ผลนัดติดตั้ง',zoom:'Zoom Staff · No Register / No Connect (ตามตัวกรองในหน้า)',cancel:'Detail Cancel · สรุปรายสาขา สาเหตุ แนวทางแก้ไข'};
 function ensure(p){const root=document.getElementById('p-'+p);if(!root||!GEN[p])return null;let box=root.querySelector(':scope > .lnbox');
   if(!box){box=document.createElement('div');box.className='panel lnbox';box.innerHTML='<h3>💬 LINE Message <span class="tag">'+TITLE[p]+' · แยก BMA III / BMA IV · กดคัดลอกแล้ววางใน LINE</span></h3><div class="lngrid">'+BM.map((b,i)=>'<div class="lncol"><div class="lnhd"><span>'+b+'</span><button type="button" class="lncp" data-i="'+i+'" title="คัดลอกข้อความ" aria-label="คัดลอกข้อความ"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg></button></div><textarea readonly></textarea></div>').join('')+'</div><div class="lnnote">'+(p==='zoom'?'ข้อความสร้างตามตัวกรองในหน้า (BMA / ตำแหน่ง / สาขา / ประเภท) · ตัวเลขตรงกับตาราง No Register / No Connect':'ข้อความสร้างจากข้อมูลทั้ง BMA (ไม่ขึ้นกับตัวกรองในหน้า) · สัปดาห์ = วันจันทร์ถึงวันที่ข้อมูลล่าสุด เทียบช่วงวันเดียวกันของสัปดาห์ก่อน')+'</div>';
     const sig=root.querySelector(':scope > .sig');sig?root.insertBefore(box,sig):root.appendChild(box);
