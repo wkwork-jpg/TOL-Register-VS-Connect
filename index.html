@@ -2827,7 +2827,7 @@ function pageZoom(){
   const gcol=g=>{const f=ZG.find(z=>z[0]===g);return f?f[1]:C.slate;};
   root.innerHTML=`
    <div class="hd"><div><h1>Zoom Staff — พนักงานราย %Ach(RR) · %Reg(RR)</h1><div class="sub">แบ่งกลุ่มพนักงานตาม %Ach(RR) (Connect) และ %Reg(RR) (Register)</div></div>
-     <div class="meta"><span class="pill" style="background:rgba(255,255,255,.1)">แหล่ง: indy (รายคน)</span>${asofPill(DATA.meta.zoomAsof)}<span class="pill" style="background:rgba(255,255,255,.1)">ตัวเลขอาจต่างจากหน้า ราย พนักงาน เพราะตัดยอดคนละแหล่ง/วัน</span></div></div>
+     <div class="meta"><span class="pill" style="background:rgba(255,255,255,.1)">Connect: indy (รายคน) · Register: Data TOL</span>${asofPill(DATA.meta.zoomAsof)}<span class="pill" style="background:rgba(255,255,255,.1)">ตัวเลขอาจต่างจากหน้า ราย พนักงาน เพราะตัดยอดคนละแหล่ง/วัน</span></div></div>
    <div class="kpis" id="zKpi" style="grid-template-columns:repeat(9,1fr)"></div>
    <div class="filters"><div class="frow">
      <div class="fgrp"><span class="lab">พื้นที่</span><div class="chips" id="zBma"></div></div>
@@ -3873,7 +3873,7 @@ function src(p){const d=lb();const raw=[R,d.raw];
   status:[['รายเคส',R,d.raw],['เหตุผล / Remark',P,'']],
   cancel:[['รายเคสยกเลิก',R,d.raw],['สาเหตุ / Remark',P,'']],
   staff:[['ทั้งหน้า',R+' + Target รายบุคคล',d.raw]],
-  zoom:[['ทั้งหน้า',Z,d.z]],
+  zoom:[['Connect · %Ach(RR)',Z,d.z],['Register · %Reg(RR)',R,d.raw]],
   camp:[['ทั้งหน้า',R+' (CAMPAIGN_TOL)',d.raw],['รูปแคมเปญ','โฟลเดอร์ Campaign Focus','']],
   chan:[['ทั้งหน้า',R+' (TRUE_HELPER_DSCR)',d.raw]],
   appt:[['ทั้งหน้า',P,'']],monitor:[['ทั้งหน้า',R,d.raw]]}[p];
